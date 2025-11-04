@@ -319,7 +319,7 @@ export default function UAEJobFinder() {
               <Briefcase className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
               <div>
                 <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
-                  UAE Developer Jobs
+                 VIKI THE JOB HUNTER
                 </h1>
                 <p className="text-xs text-gray-500">Auto-save • All Developer Roles</p>
               </div>
