@@ -18,7 +18,7 @@ if (!process.env.APPLICANT_NAME) {
 
 // Vercel Cron Secret for security
 const CRON_SECRET = process.env.CRON_SECRET;
-
+ 
 const MONGODB_URI: string = process.env.MONGODB_URI;
 const DB_NAME: string = process.env.DB_NAME;
 const COLLECTION_NAME = process.env.MONGODB_COLLECTION || 'companies';
