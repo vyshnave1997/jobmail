@@ -18,7 +18,7 @@ if (!process.env.APPLICANT_NAME) {
 
 // Vercel Cron Secret for security
 const CRON_SECRET = process.env.CRON_SECRET;
-
+ 
 const MONGODB_URI: string = process.env.MONGODB_URI;
 const DB_NAME: string = process.env.DB_NAME;
 const COLLECTION_NAME = process.env.MONGODB_COLLECTION || 'companies';
@@ -439,7 +439,7 @@ export async function GET(request: NextRequest) {
           attachments: [
             {
               filename: `${APPLICANT_NAME.replace(/\s+/g, '_')}_Resume.pdf`,
-              path: './public/Vyshnave_K_Resume.pdf'
+              path: '/Vyshnave_K_Resume.pdf'
             }
           ]
         };
