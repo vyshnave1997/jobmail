@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Clock, Send, CheckCircle, XCircle, Loader2, Play, Pause, Calendar, RefreshCw } from 'lucide-react';
+import { Mail, Clock, Send, CheckCircle, XCircle, Loader2, Calendar, RefreshCw, Zap, AlertCircle } from 'lucide-react';
 
 interface EmailStats {
   totalWithEmail: number;
@@ -25,7 +25,6 @@ interface SendResponse {
 export default function AutomatedEmailSender() {
   const [stats, setStats] = useState<EmailStats | null>(null);
   const [loading, setLoading] = useState(false);
-  const [cronEnabled, setCronEnabled] = useState(false);
   const [lastSendTime, setLastSendTime] = useState<string | null>(null);
   const [nextScheduledTime, setNextScheduledTime] = useState<string | null>(null);
   const [sendResults, setSendResults] = useState<EmailResult[]>([]);
@@ -44,10 +43,10 @@ export default function AutomatedEmailSender() {
     }
   };
 
-  // Send emails manually
+  // Send emails manually (sends to ALL companies with email)
   const sendEmailsNow = async () => {
     setLoading(true);
-    setStatusMessage('Sending emails...');
+    setStatusMessage('Sending emails to ALL companies...');
     setSendResults([]);
     
     try {
@@ -93,34 +92,16 @@ export default function AutomatedEmailSender() {
     return tomorrow.toLocaleString();
   };
 
-  // Check if current time is within sending window and is a scheduled time
-  const shouldSendEmail = () => {
-    const now = new Date();
-    const hour = now.getHours();
-    const minute = now.getMinutes();
-    
-    // Only send at specific times: 8 AM, 12 PM, 2 PM, 6 PM
-    const scheduledHours = [8, 12, 14, 18];
-    
-    // Check if it's within 1 minute of scheduled time
-    return scheduledHours.includes(hour) && minute < 1;
-  };
-
-  // Auto-send emails based on cron schedule
+  // Update next scheduled time
   useEffect(() => {
-    if (!cronEnabled) return;
-
-    const interval = setInterval(() => {
-      if (shouldSendEmail()) {
-        sendEmailsNow();
-      }
-      setNextScheduledTime(getNextScheduledTime());
-    }, 60000); // Check every minute
-
     setNextScheduledTime(getNextScheduledTime());
+    
+    const interval = setInterval(() => {
+      setNextScheduledTime(getNextScheduledTime());
+    }, 60000); // Update every minute
 
     return () => clearInterval(interval);
-  }, [cronEnabled]);
+  }, []);
 
   // Initial stats fetch
   useEffect(() => {
@@ -146,31 +127,15 @@ export default function AutomatedEmailSender() {
                 Automated Email Sender
               </h2>
               <p className="text-sm text-gray-600">
-                Schedule: 8 AM, 12 PM, 2 PM, 6 PM daily
+                Vercel Cron: 8 AM, 12 PM, 2 PM, 6 PM daily (GST/Dubai time)
               </p>
             </div>
           </div>
 
-          <button
-            onClick={() => setCronEnabled(!cronEnabled)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              cronEnabled
-                ? 'bg-red-500 hover:bg-red-600 text-white'
-                : 'bg-green-500 hover:bg-green-600 text-white'
-            }`}
-          >
-            {cronEnabled ? (
-              <>
-                <Pause className="w-4 h-4" />
-                Stop Automation
-              </>
-            ) : (
-              <>
-                <Play className="w-4 h-4" />
-                Start Automation
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2 px-4 py-2 bg-green-100 border-2 border-green-400 rounded-lg">
+            <Zap className="w-5 h-5 text-green-600" />
+            <span className="text-sm font-semibold text-green-700">Auto-Enabled</span>
+          </div>
         </div>
 
         {/* Statistics */}
@@ -179,7 +144,7 @@ export default function AutomatedEmailSender() {
             <div className="bg-white rounded-lg p-4 border border-indigo-100">
               <div className="flex items-center gap-2 mb-2">
                 <Mail className="w-5 h-5 text-blue-600" />
-                <span className="text-sm font-medium text-gray-600">Companies with Email</span>
+                <span className="text-sm font-medium text-gray-600">Total with Email</span>
               </div>
               <p className="text-3xl font-bold text-gray-900">{stats.totalWithEmail}</p>
             </div>
@@ -208,21 +173,15 @@ export default function AutomatedEmailSender() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Calendar className="w-5 h-5 text-indigo-600" />
-                <span className="font-semibold text-gray-900">Automation Status</span>
+                <span className="font-semibold text-gray-900">Vercel Cron Status</span>
               </div>
               <div className="space-y-1 text-sm">
-                {cronEnabled ? (
-                  <>
-                    <p className="text-green-600 font-medium">● Active - Monitoring schedule</p>
-                    {nextScheduledTime && (
-                      <p className="text-gray-600">Next scheduled: {nextScheduledTime}</p>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-gray-500">○ Inactive - Click "Start Automation" to enable</p>
+                <p className="text-green-600 font-medium">● Active - Running on Vercel infrastructure</p>
+                {nextScheduledTime && (
+                  <p className="text-gray-600">Next scheduled run: {nextScheduledTime}</p>
                 )}
                 {lastSendTime && (
-                  <p className="text-gray-600">Last sent: {lastSendTime}</p>
+                  <p className="text-gray-600">Last manual send: {lastSendTime}</p>
                 )}
               </div>
             </div>
@@ -239,7 +198,7 @@ export default function AutomatedEmailSender() {
               
               <button
                 onClick={sendEmailsNow}
-                disabled={loading || stats?.pendingEmails === 0}
+                disabled={loading}
                 className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
               >
                 {loading ? (
@@ -250,10 +209,25 @@ export default function AutomatedEmailSender() {
                 ) : (
                   <>
                     <Send className="w-4 h-4" />
-                    Send Now
+                    Send Now (All)
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Important Notice */}
+        <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 mb-6">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-yellow-900 mb-1">Important: No Filtering</p>
+              <p className="text-sm text-yellow-800">
+                The cron job will send emails to <strong>ALL companies with email addresses</strong> in the database, 
+                regardless of whether they've been sent before. Each run processes up to 50 companies with a 3-second 
+                delay between emails to avoid rate limiting.
+              </p>
             </div>
           </div>
         </div>
@@ -313,8 +287,10 @@ export default function AutomatedEmailSender() {
         {/* Info Box */}
         <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
           <p className="text-sm text-blue-800">
-            <strong>How it works:</strong> When automation is enabled, emails will be sent automatically at 8 AM, 12 PM, 2 PM, and 6 PM daily. 
-            You can also send emails manually at any time using the "Send Now" button.
+            <strong>How Vercel Cron Works:</strong> Vercel will automatically trigger the email sending at 8 AM, 12 PM, 
+            2 PM, and 6 PM (GST/Dubai time) daily. No need to keep the site open! The cron job runs on Vercel's servers 
+            and sends emails to ALL companies with valid email addresses. You can also manually trigger sends anytime using 
+            the "Send Now (All)" button above.
           </p>
         </div>
       </div>
