@@ -1,8 +1,12 @@
 {
   "crons": [
     {
-      "path": "/api/send-emails",
-      "schedule": "0 9 * * *"
+      "path": "/api/cron/refresh-jobs",
+      "schedule": "0 8,10,12 * * *"
+    },
+    {
+      "path": "/api/cron/send-emails",
+      "schedule": "0 8,12,14,18 * * *"
     }
   ]
 }
