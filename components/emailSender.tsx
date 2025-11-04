@@ -43,7 +43,7 @@ export default function AutomatedEmailSender() {
     }
   };
 
-  // Send emails manually (sends to ALL companies with email)
+  // Send emails manually (sends to ALL companies including already sent)
   const sendEmailsNow = async () => {
     setLoading(true);
     setStatusMessage('Sending emails to ALL companies...');
@@ -52,12 +52,16 @@ export default function AutomatedEmailSender() {
     try {
       const response = await fetch('/api/send-emails', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ manual: true })
       });
       const data: SendResponse = await response.json();
       
       if (data.success) {
         setSendResults(data.results);
-        setStatusMessage(`✓ ${data.sent} emails sent successfully, ${data.failed} failed`);
+        setStatusMessage(`✓ ${data.sent} emails sent successfully${data.failed > 0 ? `, ${data.failed} failed` : ''}`);
         setLastSendTime(new Date().toLocaleString());
         await fetchStats();
       } else {
@@ -223,11 +227,12 @@ export default function AutomatedEmailSender() {
             <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-sm font-semibold text-yellow-900 mb-1">Important: No Filtering</p>
-              <p className="text-sm text-yellow-800">
-                The cron job will send emails to <strong>ALL companies with email addresses</strong> in the database, 
-                regardless of whether they've been sent before. Each run processes up to 50 companies with a 3-second 
-                delay between emails to avoid rate limiting.
-              </p>
+              <ul className="text-sm text-yellow-800 space-y-1">
+                <li><strong>Manual Send:</strong> Sends to ALL companies with email addresses, including those already sent</li>
+                <li><strong>Cron Job:</strong> Sends to ALL companies with email addresses, including those already sent</li>
+                <li><strong>Rate Limiting:</strong> Maximum 50 emails per run with 3-second delay between sends</li>
+                <li><strong>⚠️ Warning:</strong> Companies will receive duplicate emails if sent multiple times</li>
+              </ul>
             </div>
           </div>
         </div>
@@ -287,10 +292,9 @@ export default function AutomatedEmailSender() {
         {/* Info Box */}
         <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
           <p className="text-sm text-blue-800">
-            <strong>How Vercel Cron Works:</strong> Vercel will automatically trigger the email sending at 8 AM, 12 PM, 
-            2 PM, and 6 PM (GST/Dubai time) daily. No need to keep the site open! The cron job runs on Vercel's servers 
-            and sends emails to ALL companies with valid email addresses. You can also manually trigger sends anytime using 
-            the "Send Now (All)" button above.
+            <strong>How It Works:</strong> Both the cron job and manual send will email ALL companies with valid 
+            email addresses, regardless of whether they've been sent before. This means companies may receive 
+            multiple emails. The system updates the "mailSent" tag and timestamp after each send.
           </p>
         </div>
       </div>

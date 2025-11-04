@@ -363,7 +363,7 @@ const generateHTMLCoverLetter = (companyName: string, jobTitle: string, applican
   `;
 };
 
-// Main cron handler
+// Main cron handler (GET for scheduled cron)
 export async function GET(request: NextRequest) {
   try {
     // Verify cron secret for security
@@ -381,8 +381,7 @@ export async function GET(request: NextRequest) {
     const db = client.db(DB_NAME);
     const collection = db.collection(COLLECTION_NAME);
 
-    // Get ALL companies with email addresses (no mailSent filter)
-    // This will send to everyone, including those already sent
+    // Get ALL companies with email addresses (no filtering - send to everyone)
     const companies = await collection
       .find({
         companyMail: { $exists: true, $ne: null, $nin: ['', null] }
@@ -395,14 +394,14 @@ export async function GET(request: NextRequest) {
       console.log('📭 No companies with email addresses found');
       return NextResponse.json({
         success: true,
-        message: 'No companies to email',
+        message: 'No companies with email addresses found',
         sent: 0,
         failed: 0,
         results: []
       });
     }
 
-    console.log(`📧 Found ${companies.length} companies to email`);
+    console.log(`📧 Found ${companies.length} companies to email (including already sent)`);
 
     const transporter = createTransporter();
     let sentCount = 0;
@@ -497,6 +496,141 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         message: 'Cron job failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// Manual send handler (POST for manual triggering)
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    const isManual = body.manual === true;
+
+    console.log('📤 Manual send triggered at:', new Date().toISOString());
+
+    const client = await connectToDatabase();
+    const db = client.db(DB_NAME);
+    const collection = db.collection(COLLECTION_NAME);
+
+    // For manual sends, get ALL companies with email (no filtering)
+    const companies = await collection
+      .find({
+        companyMail: { $exists: true, $ne: null, $nin: ['', null] }
+      })
+      .sort({ serialNo: 1 })
+      .limit(MAX_EMAILS_PER_RUN)
+      .toArray();
+
+    if (companies.length === 0) {
+      console.log('📭 No companies with email addresses found');
+      return NextResponse.json({
+        success: true,
+        message: 'No companies with email addresses found',
+        sent: 0,
+        failed: 0,
+        results: []
+      });
+    }
+
+    console.log(`📧 Found ${companies.length} companies for manual send (including already sent)`);
+
+    const transporter = createTransporter();
+    let sentCount = 0;
+    let failedCount = 0;
+    const results = [];
+
+    for (const company of companies) {
+      try {
+        // Add delay between emails to avoid rate limiting (3 seconds)
+        if (sentCount > 0) {
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+
+        const coverLetterText = generateCoverLetter(
+          company.companyName,
+          company.companyDetail,
+          APPLICANT_NAME
+        );
+
+        const coverLetterHTML = generateHTMLCoverLetter(
+          company.companyName,
+          company.companyDetail,
+          APPLICANT_NAME
+        );
+
+        const mailOptions = {
+          from: {
+            name: `${APPLICANT_NAME} - Software Developer`,
+            address: process.env.EMAIL_USER!
+          },
+          to: company.companyMail,
+          subject: `Application for ${company.companyDetail} - ${APPLICANT_NAME} | 4+ Years React/Next.js Experience`,
+          text: coverLetterText,
+          html: coverLetterHTML,
+          attachments: [
+            {
+              filename: `${APPLICANT_NAME.replace(/\s+/g, '_')}_Resume.pdf`,
+              path: './public/Vyshnave_K_Resume.pdf'
+            }
+          ]
+        };
+
+        await transporter.sendMail(mailOptions);
+
+        // Update database to mark email as sent with timestamp
+        await collection.updateOne(
+          { _id: company._id },
+          {
+            $set: {
+              mailSent: 'Sent',
+              mailSentAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            }
+          }
+        );
+
+        sentCount++;
+        results.push({
+          company: company.companyName,
+          email: company.companyMail,
+          status: 'sent'
+        });
+
+        console.log(`✓ Email sent to ${company.companyName} (${company.companyMail})`);
+      } catch (error) {
+        failedCount++;
+        results.push({
+          company: company.companyName,
+          email: company.companyMail,
+          status: 'failed',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        console.error(`✗ Failed to send email to ${company.companyMail}:`, error);
+      }
+    }
+
+    const summary = {
+      success: true,
+      message: `Manual send completed: ${sentCount} sent, ${failedCount} failed`,
+      sent: sentCount,
+      failed: failedCount,
+      timestamp: new Date().toISOString(),
+      results
+    };
+
+    console.log('✅ Manual send completed:', summary);
+
+    return NextResponse.json(summary);
+  } catch (error) {
+    console.error('❌ Error in manual send:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'Manual send failed',
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString()
       },
