@@ -439,7 +439,7 @@ export async function GET(request: NextRequest) {
           attachments: [
             {
               filename: `${APPLICANT_NAME.replace(/\s+/g, '_')}_Resume.pdf`,
-              path: './public/Vyshnave_K_Resume.pdf'
+              path: '/Vyshnave_K_Resume.pdf'
             }
           ]
         };
