@@ -4,9 +4,6 @@
       "path": "/api/cron/refresh-jobs",
       "schedule": "0 9 * * *"
     },
-    {
-      "path": "/api/cron/send-emails",
-      "schedule": "0 9 * * *"
-    }
+  
   ]
 }
