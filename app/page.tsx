@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Briefcase, MapPin, DollarSign, Clock, ExternalLink, Building2, Loader2, AlertCircle, Star, CheckCircle, Mail, Phone, Globe, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
-import AutomatedEmailSender from '@/components/emailSender';
+import { Briefcase, MapPin, DollarSign, Clock, ExternalLink, Building2, Loader2, AlertCircle, Star, CheckCircle, Mail, Phone, Globe, RefreshCw, ChevronDown, ChevronUp, Zap, Calendar, Send } from 'lucide-react';
 
 interface Job {
   job_id: string;
@@ -36,6 +35,27 @@ interface DatabaseJob {
   serialNo: number;
 }
 
+interface EmailStats {
+  totalWithEmail: number;
+  sentEmails: number;
+  pendingEmails: number;
+}
+
+interface EmailResult {
+  company: string;
+  email: string;
+  status: 'sent' | 'failed';
+  error?: string;
+}
+
+interface SendResponse {
+  success: boolean;
+  message: string;
+  sent: number;
+  failed: number;
+  results: EmailResult[];
+}
+
 const SEARCH_QUERIES = [
   'Frontend Developer',
   'Software Developer',
@@ -57,6 +77,14 @@ export default function UAEJobFinder() {
   const [nextScheduledRun, setNextScheduledRun] = useState<string>('');
   const [lastRefresh, setLastRefresh] = useState<string>('');
   const [isEmailSectionOpen, setIsEmailSectionOpen] = useState<boolean>(true);
+  
+  // Email sender states
+  const [emailStats, setEmailStats] = useState<EmailStats | null>(null);
+  const [sendingEmails, setSendingEmails] = useState(false);
+  const [lastSendTime, setLastSendTime] = useState<string | null>(null);
+  const [nextScheduledEmail, setNextScheduledEmail] = useState<string | null>(null);
+  const [sendResults, setSendResults] = useState<EmailResult[]>([]);
+  const [emailStatusMessage, setEmailStatusMessage] = useState<string>('');
 
   const searchJobs = async (query: string): Promise<Job[]> => {
     try {
@@ -71,13 +99,15 @@ export default function UAEJobFinder() {
         }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to fetch jobs');
+        console.error('API Error:', data);
+        throw new Error(data.error || 'Failed to fetch jobs');
       }
 
-      const data = await response.json();
       return data.data || [];
-    } catch (err) {
+    } catch (err: any) {
       console.error(`Error fetching ${query}:`, err);
       return [];
     }
@@ -146,6 +176,68 @@ export default function UAEJobFinder() {
     } finally {
       setLoadingEmails(false);
     }
+  };
+
+  const fetchEmailStats = async () => {
+    try {
+      const response = await fetch('/api/send-emails');
+      const data = await response.json();
+      if (data.success) {
+        setEmailStats(data.stats);
+      }
+    } catch (error) {
+      console.error('Error fetching email stats:', error);
+    }
+  };
+
+  const sendEmailsNow = async () => {
+    setSendingEmails(true);
+    setEmailStatusMessage('Sending emails to ALL companies...');
+    setSendResults([]);
+    
+    try {
+      const response = await fetch('/api/send-emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ manual: true })
+      });
+      const data: SendResponse = await response.json();
+      
+      if (data.success) {
+        setSendResults(data.results);
+        setEmailStatusMessage(`✓ ${data.sent} emails sent successfully${data.failed > 0 ? `, ${data.failed} failed` : ''}`);
+        setLastSendTime(new Date().toLocaleString());
+        await fetchEmailStats();
+      } else {
+        setEmailStatusMessage(`✗ Failed: ${data.message}`);
+      }
+    } catch (error) {
+      setEmailStatusMessage('✗ Error sending emails');
+      console.error('Error:', error);
+    } finally {
+      setSendingEmails(false);
+    }
+  };
+
+  const getNextScheduledEmailTime = () => {
+    const now = new Date();
+    const schedules = [8, 12, 14, 18]; // 8 AM, 12 PM, 2 PM, 6 PM
+    
+    for (const hour of schedules) {
+      const scheduledTime = new Date();
+      scheduledTime.setHours(hour, 0, 0, 0);
+      
+      if (scheduledTime > now) {
+        return scheduledTime.toLocaleString();
+      }
+    }
+    
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(8, 0, 0, 0);
+    return tomorrow.toLocaleString();
   };
 
   const autoSaveJobs = async (jobsList: Job[]): Promise<void> => {
@@ -218,7 +310,7 @@ export default function UAEJobFinder() {
         hour12: true 
       }));
     } else {
-      setError('No jobs found. Please try again later.');
+      setError('No jobs found. Please check your API configuration and try again.');
     }
 
     setLoading(false);
@@ -278,12 +370,26 @@ export default function UAEJobFinder() {
   useEffect(() => {
     searchAllJobs(false);
     setNextScheduledRun(getNextScheduledTime());
+    setNextScheduledEmail(getNextScheduledEmailTime());
+    fetchEmailStats();
     
-    const interval = setInterval(() => {
+    const jobInterval = setInterval(() => {
       checkAndRunScheduledJob();
     }, 60000);
+
+    const emailInterval = setInterval(() => {
+      setNextScheduledEmail(getNextScheduledEmailTime());
+    }, 60000);
+
+    const statsInterval = setInterval(() => {
+      fetchEmailStats();
+    }, 30000);
     
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(jobInterval);
+      clearInterval(emailInterval);
+      clearInterval(statsInterval);
+    };
   }, []);
 
   const formatSalary = (job: Job): string => {
@@ -319,7 +425,7 @@ export default function UAEJobFinder() {
               <Briefcase className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
               <div>
                 <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
-                 VIKI THE JOB HUNTER
+                  VIKI THE JOB HUNTER
                 </h1>
                 <p className="text-xs text-gray-500">Auto-save • All Developer Roles</p>
               </div>
@@ -357,7 +463,6 @@ export default function UAEJobFinder() {
         {!loadingEmails && jobsWithEmails.length > 0 && (
           <div className="mb-6 sm:mb-8">
             <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-xl shadow-lg overflow-hidden">
-              {/* Collapsible Header */}
               <button
                 onClick={() => setIsEmailSectionOpen(!isEmailSectionOpen)}
                 className="w-full p-4 sm:p-6 flex items-center justify-between hover:bg-emerald-50/50 transition-colors"
@@ -368,10 +473,10 @@ export default function UAEJobFinder() {
                   </div>
                   <div className="text-left">
                     <h2 className="text-base sm:text-xl font-bold text-gray-900">
-                      Companies with Email Contacts
+                      Automated Email Sender
                     </h2>
                     <p className="text-xs sm:text-sm text-gray-600">
-                      {jobsWithEmails.length} companies available
+                      {jobsWithEmails.length} companies with email
                     </p>
                   </div>
                 </div>
@@ -384,12 +489,109 @@ export default function UAEJobFinder() {
                 </div>
               </button>
 
-              {/* Collapsible Content */}
               {isEmailSectionOpen && (
                 <div className="p-4 sm:p-6 pt-0 border-t border-emerald-200">
-                  {/* Email Sender Component */}
-                  <div className="mb-4">
-                    <AutomatedEmailSender />
+                  {/* Embedded Email Sender */}
+                  <div className="bg-white rounded-lg p-3 sm:p-4 mb-4 border border-emerald-100">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Calendar className="w-4 h-4 text-indigo-600" />
+                      <span className="text-sm font-semibold text-gray-900">Email Automation</span>
+                      <div className="ml-auto flex items-center gap-1.5 px-2 py-1 bg-green-100 border border-green-400 rounded text-xs font-semibold text-green-700">
+                        <Zap className="w-3 h-3" />
+                        Active
+                      </div>
+                    </div>
+
+                    {emailStats && (
+                      <div className="grid grid-cols-3 gap-2 mb-3">
+                        <div className="bg-blue-50 rounded p-2 text-center">
+                          <div className="text-xs text-gray-600 mb-1">Total</div>
+                          <div className="text-lg font-bold text-blue-600">{emailStats.totalWithEmail}</div>
+                        </div>
+                        <div className="bg-green-50 rounded p-2 text-center">
+                          <div className="text-xs text-gray-600 mb-1">Sent</div>
+                          <div className="text-lg font-bold text-green-600">{emailStats.sentEmails}</div>
+                        </div>
+                        <div className="bg-orange-50 rounded p-2 text-center">
+                          <div className="text-xs text-gray-600 mb-1">Pending</div>
+                          <div className="text-lg font-bold text-orange-600">{emailStats.pendingEmails}</div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-2 mb-3 text-xs text-gray-600">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                        <span>Cron: 8 AM, 12 PM, 2 PM, 6 PM (GST)</span>
+                      </div>
+                      {nextScheduledEmail && (
+                        <p className="pl-4">Next run: {nextScheduledEmail}</p>
+                      )}
+                      {lastSendTime && (
+                        <p className="pl-4">Last sent: {lastSendTime}</p>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={fetchEmailStats}
+                        disabled={sendingEmails}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-300 text-white text-xs font-medium rounded transition-colors"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${sendingEmails ? 'animate-spin' : ''}`} />
+                        Refresh
+                      </button>
+                      <button
+                        onClick={sendEmailsNow}
+                        disabled={sendingEmails}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white text-xs font-medium rounded transition-colors"
+                      >
+                        {sendingEmails ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-3 h-3" />
+                            Send All
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {emailStatusMessage && (
+                      <div className={`mt-3 p-2 rounded text-xs ${
+                        emailStatusMessage.startsWith('✓') 
+                          ? 'bg-green-50 border border-green-200 text-green-800'
+                          : 'bg-red-50 border border-red-200 text-red-800'
+                      }`}>
+                        {emailStatusMessage}
+                      </div>
+                    )}
+
+                    {sendResults.length > 0 && (
+                      <div className="mt-3 max-h-40 overflow-y-auto space-y-1">
+                        {sendResults.slice(0, 5).map((result, index) => (
+                          <div
+                            key={index}
+                            className={`p-2 rounded text-xs ${
+                              result.status === 'sent'
+                                ? 'bg-green-50 text-green-800'
+                                : 'bg-red-50 text-red-800'
+                            }`}
+                          >
+                            <div className="font-medium">{result.company}</div>
+                            <div className="text-xs opacity-75">{result.email}</div>
+                          </div>
+                        ))}
+                        {sendResults.length > 5 && (
+                          <div className="text-xs text-gray-500 text-center pt-1">
+                            +{sendResults.length - 5} more results
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Jobs Grid */}
@@ -514,11 +716,19 @@ export default function UAEJobFinder() {
         )}
 
         {error && !loading && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6 flex items-start gap-2 sm:gap-3">
-            <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <div className="text-red-800">
-              <p className="font-semibold mb-1 text-sm sm:text-base">Error</p>
-              <p className="text-xs sm:text-sm">{error}</p>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
+            <div className="flex items-start gap-2 sm:gap-3">
+              <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-semibold mb-1 text-sm sm:text-base text-red-800">Error Loading Jobs</p>
+                <p className="text-xs sm:text-sm text-red-700 mb-3">{error}</p>
+                <button
+                  onClick={() => searchAllJobs(false)}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Try Again
+                </button>
+              </div>
             </div>
           </div>
         )}

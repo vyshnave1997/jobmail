@@ -119,183 +119,200 @@ export default function AutomatedEmailSender() {
   }, []);
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-8">
-      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl p-4 sm:p-6 shadow-lg">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-3">
-            <div className="bg-indigo-600 p-2 sm:p-3 rounded-lg">
-              <Mail className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+    <div className="min-h-screen bg-gray-50 py-2 sm:py-4 lg:py-8">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-lg sm:rounded-xl p-3 sm:p-5 lg:p-6 shadow-lg">
+          
+          {/* Header */}
+          <div className="mb-4 sm:mb-6">
+            <div className="flex items-start gap-2 sm:gap-3 mb-3 sm:mb-4">
+              <div className="bg-indigo-600 p-2 rounded-lg flex-shrink-0">
+                <Mail className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 leading-tight">
+                  Automated Email Sender
+                </h2>
+                <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
+                  Cron: 8 AM, 12 PM, 2 PM, 6 PM (GST)
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-                Automated Email Sender
-              </h2>
-              <p className="text-xs sm:text-sm text-gray-600">
-                Vercel Cron: 8 AM, 12 PM, 2 PM, 6 PM daily (GST/Dubai time)
-              </p>
+            
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 bg-green-100 border-2 border-green-400 rounded-lg">
+              <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-600" />
+              <span className="text-xs sm:text-sm font-semibold text-green-700">Auto-Enabled</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-green-100 border-2 border-green-400 rounded-lg">
-            <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
-            <span className="text-xs sm:text-sm font-semibold text-green-700">Auto-Enabled</span>
-          </div>
-        </div>
-
-        {/* Statistics */}
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-white rounded-lg p-4 border border-indigo-100">
-              <div className="flex items-center gap-2 mb-2">
-                <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-                <span className="text-xs sm:text-sm font-medium text-gray-600">Total with Email</span>
+          {/* Statistics */}
+          {stats && (
+            <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6">
+              <div className="bg-white rounded-lg p-2.5 sm:p-3 lg:p-4 border border-indigo-100">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
+                  <Mail className="w-4 h-4 text-blue-600" />
+                  <span className="text-xs font-medium text-gray-600 leading-tight">Total</span>
+                </div>
+                <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">{stats.totalWithEmail}</p>
               </div>
-              <p className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.totalWithEmail}</p>
-            </div>
 
-            <div className="bg-white rounded-lg p-4 border border-green-100">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
-                <span className="text-xs sm:text-sm font-medium text-gray-600">Emails Sent</span>
+              <div className="bg-white rounded-lg p-2.5 sm:p-3 lg:p-4 border border-green-100">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <span className="text-xs font-medium text-gray-600 leading-tight">Sent</span>
+                </div>
+                <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-green-600">{stats.sentEmails}</p>
               </div>
-              <p className="text-2xl sm:text-3xl font-bold text-green-600">{stats.sentEmails}</p>
-            </div>
 
-            <div className="bg-white rounded-lg p-4 border border-orange-100">
-              <div className="flex items-center gap-2 mb-2">
-                <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
-                <span className="text-xs sm:text-sm font-medium text-gray-600">Pending</span>
-              </div>
-              <p className="text-2xl sm:text-3xl font-bold text-orange-600">{stats.pendingEmails}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Cron Status */}
-        <div className="bg-white rounded-lg p-4 mb-6 border border-indigo-100">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-            <div className="w-full lg:w-auto">
-              <div className="flex items-center gap-2 mb-2">
-                <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
-                <span className="text-sm sm:text-base font-semibold text-gray-900">Vercel Cron Status</span>
-              </div>
-              <div className="space-y-1 text-xs sm:text-sm">
-                <p className="text-green-600 font-medium">● Active - Running on Vercel infrastructure</p>
-                {nextScheduledTime && (
-                  <p className="text-gray-600">Next scheduled run: {nextScheduledTime}</p>
-                )}
-                {lastSendTime && (
-                  <p className="text-gray-600">Last manual send: {lastSendTime}</p>
-                )}
+              <div className="bg-white rounded-lg p-2.5 sm:p-3 lg:p-4 border border-orange-100">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
+                  <Clock className="w-4 h-4 text-orange-600" />
+                  <span className="text-xs font-medium text-gray-600 leading-tight">Pending</span>
+                </div>
+                <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-orange-600">{stats.pendingEmails}</p>
               </div>
             </div>
+          )}
 
-            <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+          {/* Cron Status */}
+          <div className="bg-white rounded-lg p-3 sm:p-4 mb-4 sm:mb-6 border border-indigo-100">
+            <div className="flex items-center gap-2 mb-2 sm:mb-3">
+              <Calendar className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+              <span className="text-sm sm:text-base font-semibold text-gray-900">Cron Status</span>
+            </div>
+            
+            <div className="space-y-1.5 mb-3 sm:mb-4">
+              <div className="flex items-start gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-500 mt-1 flex-shrink-0"></div>
+                <p className="text-xs sm:text-sm text-green-600 font-medium leading-relaxed">
+                  Active - Running on Vercel
+                </p>
+              </div>
+              {nextScheduledTime && (
+                <p className="text-xs sm:text-sm text-gray-600 pl-4">
+                  Next: {nextScheduledTime}
+                </p>
+              )}
+              {lastSendTime && (
+                <p className="text-xs sm:text-sm text-gray-600 pl-4">
+                  Last: {lastSendTime}
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={fetchStats}
                 disabled={loading}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-sm sm:text-base font-medium rounded-lg transition-colors"
+                className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 py-2.5 bg-gray-600 hover:bg-gray-700 active:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs sm:text-sm font-medium rounded-lg transition-colors"
               >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
+                <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${loading ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Refresh</span>
+                <span className="sm:hidden">Refresh</span>
               </button>
               
               <button
                 onClick={sendEmailsNow}
                 disabled={loading}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-sm sm:text-base font-medium rounded-lg transition-colors"
+                className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs sm:text-sm font-medium rounded-lg transition-colors"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Sending...
+                    <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                    <span>Sending...</span>
                   </>
                 ) : (
                   <>
-                    <Send className="w-4 h-4" />
-                    Send Now (All)
+                    <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span>Send All</span>
                   </>
                 )}
               </button>
             </div>
           </div>
-        </div>
 
-        {/* Important Notice */}
-        <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-3 sm:p-4 mb-6">
-          <div className="flex items-start gap-2 sm:gap-3">
-            <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-xs sm:text-sm font-semibold text-yellow-900 mb-1">Important: No Filtering</p>
-              <ul className="text-xs sm:text-sm text-yellow-800 space-y-1">
-                <li><strong>Manual Send:</strong> Sends to ALL companies with email addresses, including those already sent</li>
-                <li><strong>Cron Job:</strong> Sends to ALL companies with email addresses, including those already sent</li>
-                <li><strong>Rate Limiting:</strong> Maximum 50 emails per run with 3-second delay between sends</li>
-                <li><strong>⚠️ Warning:</strong> Companies will receive duplicate emails if sent multiple times</li>
-              </ul>
+          {/* Important Notice */}
+          <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-semibold text-yellow-900 mb-2">
+                  ⚠️ No Filtering - Sends to ALL
+                </p>
+                <div className="space-y-1.5 text-xs sm:text-sm text-yellow-800">
+                  <p><strong>Manual/Cron:</strong> Emails ALL companies (including sent)</p>
+                  <p><strong>Rate Limit:</strong> 50 emails/run, 3s delay</p>
+                  <p><strong>Warning:</strong> Duplicates will be sent</p>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Status Message */}
-        {statusMessage && (
-          <div className={`p-3 sm:p-4 rounded-lg mb-6 ${
-            statusMessage.startsWith('✓') 
-              ? 'bg-green-50 border border-green-200 text-green-800'
-              : 'bg-red-50 border border-red-200 text-red-800'
-          }`}>
-            <p className="text-xs sm:text-sm font-medium break-words">{statusMessage}</p>
-          </div>
-        )}
+          {/* Status Message */}
+          {statusMessage && (
+            <div className={`p-3 rounded-lg mb-4 sm:mb-6 ${
+              statusMessage.startsWith('✓') 
+                ? 'bg-green-50 border-2 border-green-200 text-green-800'
+                : 'bg-red-50 border-2 border-red-200 text-red-800'
+            }`}>
+              <p className="text-xs sm:text-sm font-medium break-words">{statusMessage}</p>
+            </div>
+          )}
 
-        {/* Send Results */}
-        {sendResults.length > 0 && (
-          <div className="bg-white rounded-lg p-3 sm:p-4 border border-indigo-100">
-            <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-4">Recent Send Results</h3>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {sendResults.map((result, index) => (
-                <div
-                  key={index}
-                  className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 sm:p-3 rounded gap-2 ${
-                    result.status === 'sent'
-                      ? 'bg-green-50 border border-green-200'
-                      : 'bg-red-50 border border-red-200'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                    {result.status === 'sent' ? (
-                      <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 flex-shrink-0" />
-                    ) : (
-                      <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0" />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm sm:text-base font-medium text-gray-900 truncate">{result.company}</p>
-                      <p className="text-xs sm:text-sm text-gray-600 truncate">{result.email}</p>
-                      {result.error && (
-                        <p className="text-xs text-red-600 mt-1">{result.error}</p>
+          {/* Send Results */}
+          {sendResults.length > 0 && (
+            <div className="bg-white rounded-lg p-3 sm:p-4 border border-indigo-100 mb-4 sm:mb-6">
+              <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-3">
+                Recent Results ({sendResults.length})
+              </h3>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {sendResults.map((result, index) => (
+                  <div
+                    key={index}
+                    className={`p-2.5 sm:p-3 rounded-lg border ${
+                      result.status === 'sent'
+                        ? 'bg-green-50 border-green-200'
+                        : 'bg-red-50 border-red-200'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      {result.status === 'sent' ? (
+                        <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                      ) : (
+                        <XCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
                       )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-xs sm:text-sm font-medium text-gray-900 break-words">
+                            {result.company}
+                          </p>
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded flex-shrink-0 ${
+                            result.status === 'sent'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-red-100 text-red-700'
+                          }`}>
+                            {result.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 break-all mt-0.5">{result.email}</p>
+                        {result.error && (
+                          <p className="text-xs text-red-600 mt-1">{result.error}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <span className={`text-xs font-medium px-2 py-1 rounded flex-shrink-0 ${
-                    result.status === 'sent'
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-red-100 text-red-700'
-                  }`}>
-                    {result.status}
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Info Box */}
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
-          <p className="text-xs sm:text-sm text-blue-800">
-            <strong>How It Works:</strong> Both the cron job and manual send will email ALL companies with valid 
-            email addresses, regardless of whether they've been sent before. This means companies may receive 
-            multiple emails. The system updates the "mailSent" tag and timestamp after each send.
-          </p>
+          {/* Info Box */}
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-blue-800 leading-relaxed">
+              <strong>How It Works:</strong> Both cron and manual send email ALL companies with valid addresses, 
+              regardless of previous sends. Companies may receive duplicates. System updates "mailSent" tag after each send.
+            </p>
+          </div>
         </div>
       </div>
     </div>
