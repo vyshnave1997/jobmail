@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MongoClient } from 'mongodb';
 import nodemailer from 'nodemailer';
+import path from 'path';
 
 // Validate environment variables
 if (!process.env.MONGODB_URI || !process.env.DB_NAME) {
@@ -20,6 +21,7 @@ const MONGODB_URI: string = process.env.MONGODB_URI;
 const DB_NAME: string = process.env.DB_NAME;
 const COLLECTION_NAME = process.env.MONGODB_COLLECTION || 'companies';
 const APPLICANT_NAME: string = process.env.APPLICANT_NAME;
+const RESUME_PATH = path.join(process.cwd(), 'public', 'Vyshnave_K_Resume.pdf');
 
 let cachedClient: MongoClient | null = null;
 
@@ -419,7 +421,7 @@ export async function POST(request: NextRequest) {
           attachments: [
             {
               filename: `${APPLICANT_NAME.replace(/\s+/g, '_')}_Resume.pdf`,
-              path: 'Vyshnave_K_Resume.pdf'
+              path: RESUME_PATH
             }
           ]
         };
