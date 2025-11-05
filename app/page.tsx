@@ -720,11 +720,11 @@ export default function UAEJobFinder() {
                       </div>
                     </div>
                   )}
-                  {/* Jobs Grid */}
+                 {/* Jobs Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 max-h-96 overflow-y-auto">
                     {jobsWithEmails.map((job) => (
                       <div
-                        key={job.serialNo}
+                        key={job.jobId || `${job.companyName}-${job.serialNo}`}
                         className="bg-white rounded-lg p-3 sm:p-4 border border-emerald-100 hover:shadow-md transition-shadow"
                       >
                         <div className="flex items-start justify-between mb-2 sm:mb-3">
