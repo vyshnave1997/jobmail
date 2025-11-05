@@ -41,16 +41,15 @@ const createTransporter = () => {
     service: 'gmail',
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD, // Use app-specific password for Gmail
+      pass: process.env.EMAIL_PASSWORD,
     },
-    // Add these settings to improve deliverability
     tls: {
       rejectUnauthorized: true
     },
-    pool: true, // Use pooled connections
+    pool: true,
     maxConnections: 1,
-    rateDelta: 2000, // 2 seconds between emails
-    rateLimit: 1 // 1 email per rateDelta
+    rateDelta: 2000,
+    rateLimit: 1
   });
 };
 
@@ -369,6 +368,8 @@ const generateHTMLCoverLetter = (companyName: string, jobTitle: string, applican
 
 // POST: Send emails to companies
 export async function POST(request: NextRequest) {
+  console.log('📧 POST: Starting email sending process...');
+  
   try {
     const client = await connectToDatabase();
     const db = client.db(DB_NAME);
@@ -382,6 +383,8 @@ export async function POST(request: NextRequest) {
       })
       .sort({ serialNo: 1 })
       .toArray();
+
+    console.log(`📊 Found ${companies.length} companies to email`);
 
     if (companies.length === 0) {
       return NextResponse.json({
@@ -469,6 +472,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log(`✅ Email process complete: ${sentCount} sent, ${failedCount} failed`);
+
     return NextResponse.json({
       success: true,
       message: `Emails sent: ${sentCount}, Failed: ${failedCount}`,
@@ -477,7 +482,7 @@ export async function POST(request: NextRequest) {
       results
     });
   } catch (error) {
-    console.error('Error in email sending:', error);
+    console.error('❌ Error in email sending:', error);
     return NextResponse.json(
       {
         success: false,
@@ -491,24 +496,28 @@ export async function POST(request: NextRequest) {
 
 // GET: Check email sending status
 export async function GET(request: NextRequest) {
+  console.log('📊 GET: Fetching email statistics...');
+  
   try {
     const client = await connectToDatabase();
     const db = client.db(DB_NAME);
     const collection = db.collection(COLLECTION_NAME);
 
     const totalWithEmail = await collection.countDocuments({
-      companyMail: { $exists: true, $ne: null, $nin: ['', null] }
+      companyMail: { $exists: true, $nin: [null, ''] }
     });
 
     const sentEmails = await collection.countDocuments({
-      companyMail: { $exists: true, $ne: null, $nin: ['', null] },
+      companyMail: { $exists: true, $nin: [null, ''] },
       mailSent: 'Sent'
     });
 
     const pendingEmails = await collection.countDocuments({
-      companyMail: { $exists: true, $ne: null, $nin: ['', null] },
+      companyMail: { $exists: true, $nin: [null, ''] },
       mailSent: { $ne: 'Sent' }
     });
+
+    console.log(`📊 Stats - Total: ${totalWithEmail}, Sent: ${sentEmails}, Pending: ${pendingEmails}`);
 
     return NextResponse.json({
       success: true,
@@ -517,9 +526,15 @@ export async function GET(request: NextRequest) {
         sentEmails,
         pendingEmails
       }
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
     });
   } catch (error) {
-    console.error('Error fetching email stats:', error);
+    console.error('❌ Error fetching email stats:', error);
     return NextResponse.json(
       {
         success: false,

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Briefcase, MapPin, DollarSign, Clock, ExternalLink, Building2, Loader2, AlertCircle, Star, CheckCircle, Mail, Phone, Globe, RefreshCw, ChevronDown, ChevronUp, Zap, Calendar, Send } from 'lucide-react';
+import { Briefcase, MapPin, DollarSign, Clock, ExternalLink, Building2, Loader2, AlertCircle, Star, CheckCircle, Mail, Phone, Globe, RefreshCw, ChevronDown, ChevronUp, Zap, Calendar, Send, RotateCcw } from 'lucide-react';
 
 interface Job {
   job_id: string;
@@ -56,6 +56,12 @@ interface SendResponse {
   results: EmailResult[];
 }
 
+interface ResetResponse {
+  success: boolean;
+  message: string;
+  resetCount: number;
+}
+
 const SEARCH_QUERIES = [
   'Frontend Developer',
   'Software Developer',
@@ -81,10 +87,12 @@ export default function UAEJobFinder() {
   // Email sender states
   const [emailStats, setEmailStats] = useState<EmailStats | null>(null);
   const [sendingEmails, setSendingEmails] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [lastSendTime, setLastSendTime] = useState<string | null>(null);
   const [nextScheduledEmail, setNextScheduledEmail] = useState<string | null>(null);
   const [sendResults, setSendResults] = useState<EmailResult[]>([]);
   const [emailStatusMessage, setEmailStatusMessage] = useState<string>('');
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const searchJobs = async (query: string): Promise<Job[]> => {
     try {
@@ -180,7 +188,13 @@ export default function UAEJobFinder() {
 
   const fetchEmailStats = async () => {
     try {
-      const response = await fetch('/api/send-emails');
+      const timestamp = new Date().getTime();
+      const response = await fetch(`/api/send-emails?t=${timestamp}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
       const data = await response.json();
       if (data.success) {
         setEmailStats(data.stats);
@@ -209,7 +223,9 @@ export default function UAEJobFinder() {
         setSendResults(data.results);
         setEmailStatusMessage(`✓ ${data.sent} emails sent successfully${data.failed > 0 ? `, ${data.failed} failed` : ''}`);
         setLastSendTime(new Date().toLocaleString());
-        await fetchEmailStats();
+        setTimeout(async () => {
+          await fetchEmailStats();
+        }, 1000);
       } else {
         setEmailStatusMessage(`✗ Failed: ${data.message}`);
       }
@@ -218,6 +234,53 @@ export default function UAEJobFinder() {
       console.error('Error:', error);
     } finally {
       setSendingEmails(false);
+    }
+  };
+
+  const resetSentEmails = async () => {
+    setResetting(true);
+    setEmailStatusMessage('Resetting all sent emails...');
+    
+    try {
+      const response = await fetch('/api/reset-emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data: ResetResponse = await response.json();
+      
+      if (data.success) {
+        setEmailStatusMessage(`✓ ${data.message}`);
+        setSendResults([]);
+        
+        // Immediately update stats optimistically
+        if (emailStats) {
+          setEmailStats({
+            totalWithEmail: emailStats.totalWithEmail,
+            sentEmails: 0,
+            pendingEmails: emailStats.totalWithEmail
+          });
+        }
+        
+        // Then fetch actual stats to confirm
+        await fetchEmailStats();
+      } else {
+        setEmailStatusMessage(`✗ Failed to reset: ${data.message}`);
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      setEmailStatusMessage('✗ Error resetting emails: ' + errorMsg);
+      console.error('Error:', error);
+    } finally {
+      setResetting(false);
+      setShowResetConfirm(false);
     }
   };
 
@@ -532,29 +595,49 @@ export default function UAEJobFinder() {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={fetchEmailStats}
+                          disabled={sendingEmails || resetting}
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-300 text-white text-xs font-medium rounded transition-colors"
+                        >
+                          <RefreshCw className={`w-3 h-3 ${sendingEmails ? 'animate-spin' : ''}`} />
+                          Refresh Stats
+                        </button>
+                        <button
+                          onClick={sendEmailsNow}
+                          disabled={sendingEmails || resetting}
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white text-xs font-medium rounded transition-colors"
+                        >
+                          {sendingEmails ? (
+                            <>
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              Sending...
+                            </>
+                          ) : (
+                            <>
+                              <Send className="w-3 h-3" />
+                              Send All
+                            </>
+                          )}
+                        </button>
+                      </div>
+
                       <button
-                        onClick={fetchEmailStats}
-                        disabled={sendingEmails}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-300 text-white text-xs font-medium rounded transition-colors"
+                        onClick={() => setShowResetConfirm(true)}
+                        disabled={sendingEmails || resetting || (emailStats?.sentEmails || 0) === 0}
+                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white text-xs font-medium rounded transition-colors"
                       >
-                        <RefreshCw className={`w-3 h-3 ${sendingEmails ? 'animate-spin' : ''}`} />
-                        Refresh
-                      </button>
-                      <button
-                        onClick={sendEmailsNow}
-                        disabled={sendingEmails}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white text-xs font-medium rounded transition-colors"
-                      >
-                        {sendingEmails ? (
+                        {resetting ? (
                           <>
                             <Loader2 className="w-3 h-3 animate-spin" />
-                            Sending...
+                            Resetting...
                           </>
                         ) : (
                           <>
-                            <Send className="w-3 h-3" />
-                            Send All
+                            <RotateCcw className="w-3 h-3" />
+                            Reset All Sent Emails
                           </>
                         )}
                       </button>
@@ -594,6 +677,49 @@ export default function UAEJobFinder() {
                     )}
                   </div>
 
+                  {/* Reset Confirmation Modal */}
+                  {showResetConfirm && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                      <div className="bg-white rounded-lg p-4 sm:p-6 max-w-md w-full shadow-xl">
+                        <div className="flex items-start gap-3 mb-4">
+                          <div className="bg-red-100 p-2 rounded-full flex-shrink-0">
+                            <AlertCircle className="w-6 h-6 text-red-600" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-bold text-gray-900 mb-2">Reset All Sent Emails?</h3>
+                            <p className="text-sm text-gray-600">
+                              This will mark all {emailStats?.sentEmails || 0} sent emails as "Not Sent". 
+                              They will be included in the next email batch.
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            onClick={() => setShowResetConfirm(false)}
+                            disabled={resetting}
+                            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 text-gray-800 text-sm font-medium rounded-lg transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={resetSentEmails}
+                            disabled={resetting}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                          >
+                            {resetting ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Resetting...
+                              </>
+                            ) : (
+                              'Yes, Reset All'
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {/* Jobs Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 max-h-96 overflow-y-auto">
                     {jobsWithEmails.map((job) => (
