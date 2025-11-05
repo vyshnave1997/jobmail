@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Clock, Send, CheckCircle, XCircle, Loader2, Calendar, RefreshCw, Zap, AlertCircle } from 'lucide-react';
+import { Mail, Clock, Send, CheckCircle, XCircle, Loader2, Calendar, RefreshCw, Zap, AlertCircle, RotateCcw } from 'lucide-react';
 
 interface EmailStats {
   totalWithEmail: number;
@@ -22,24 +22,47 @@ interface SendResponse {
   results: EmailResult[];
 }
 
+interface ResetResponse {
+  success: boolean;
+  message: string;
+  resetCount: number;
+}
+
 export default function AutomatedEmailSender() {
   const [stats, setStats] = useState<EmailStats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [lastSendTime, setLastSendTime] = useState<string | null>(null);
   const [nextScheduledTime, setNextScheduledTime] = useState<string | null>(null);
   const [sendResults, setSendResults] = useState<EmailResult[]>([]);
   const [statusMessage, setStatusMessage] = useState<string>('');
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // Fetch email stats
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/send-emails');
+      // Add cache-busting timestamp to prevent caching
+      const timestamp = new Date().getTime();
+      const response = await fetch(`/api/send-emails?t=${timestamp}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
+      console.log('📊 Fetched stats:', data);
       if (data.success) {
         setStats(data.stats);
+        console.log('✅ Stats updated:', data.stats);
+      } else {
+        console.error('Failed to fetch stats:', data.message);
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
+      setStatusMessage('✗ Error fetching statistics');
     }
   };
 
@@ -57,13 +80,21 @@ export default function AutomatedEmailSender() {
         },
         body: JSON.stringify({ manual: true })
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data: SendResponse = await response.json();
       
       if (data.success) {
         setSendResults(data.results);
         setStatusMessage(`✓ ${data.sent} emails sent successfully${data.failed > 0 ? `, ${data.failed} failed` : ''}`);
         setLastSendTime(new Date().toLocaleString());
-        await fetchStats();
+        // Wait a bit before refreshing stats to ensure DB consistency
+        setTimeout(async () => {
+          await fetchStats();
+        }, 1000);
       } else {
         setStatusMessage(`✗ Failed: ${data.message}`);
       }
@@ -72,6 +103,63 @@ export default function AutomatedEmailSender() {
       console.error('Error:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Reset all sent emails
+  const resetSentEmails = async () => {
+    setResetting(true);
+    setStatusMessage('Resetting all sent emails...');
+    
+    try {
+      console.log('🔄 Sending reset request...');
+      const response = await fetch('/api/reset-emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store'
+      });
+      
+      console.log('📡 Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Response error:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data: ResetResponse = await response.json();
+      console.log('📦 Response data:', data);
+      
+      if (data.success) {
+        setStatusMessage(`✓ ${data.message}`);
+        setSendResults([]);
+        
+        // Immediately update stats optimistically
+        if (stats) {
+          setStats({
+            totalWithEmail: stats.totalWithEmail,
+            sentEmails: 0,
+            pendingEmails: stats.totalWithEmail
+          });
+        }
+        
+        console.log('✅ Reset successful, refreshing stats...');
+        
+        // Then fetch actual stats to confirm
+        await fetchStats();
+      } else {
+        setStatusMessage(`✗ Failed to reset: ${data.message}`);
+        console.error('❌ Reset failed:', data.message);
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      setStatusMessage('✗ Error resetting emails: ' + errorMsg);
+      console.error('❌ Error:', error);
+    } finally {
+      setResetting(false);
+      setShowResetConfirm(false);
     }
   };
 
@@ -200,36 +288,99 @@ export default function AutomatedEmailSender() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-2">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={fetchStats}
+                  disabled={loading || resetting}
+                  className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 py-2.5 bg-gray-600 hover:bg-gray-700 active:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs sm:text-sm font-medium rounded-lg transition-colors"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${loading ? 'animate-spin' : ''}`} />
+                  <span>Refresh Stats</span>
+                </button>
+                
+                <button
+                  onClick={sendEmailsNow}
+                  disabled={loading || resetting}
+                  className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs sm:text-sm font-medium rounded-lg transition-colors"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                      <span>Sending...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span>Send All Emails</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
               <button
-                onClick={fetchStats}
-                disabled={loading}
-                className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 py-2.5 bg-gray-600 hover:bg-gray-700 active:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs sm:text-sm font-medium rounded-lg transition-colors"
+                onClick={() => setShowResetConfirm(true)}
+                disabled={loading || resetting || (stats?.sentEmails || 0) === 0}
+                className="w-full flex items-center justify-center gap-1.5 sm:gap-2 px-3 py-2.5 bg-red-600 hover:bg-red-700 active:bg-red-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs sm:text-sm font-medium rounded-lg transition-colors"
               >
-                <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${loading ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">Refresh</span>
-                <span className="sm:hidden">Refresh</span>
-              </button>
-              
-              <button
-                onClick={sendEmailsNow}
-                disabled={loading}
-                className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs sm:text-sm font-medium rounded-lg transition-colors"
-              >
-                {loading ? (
+                {resetting ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
-                    <span>Sending...</span>
+                    <span>Resetting All Sent Emails...</span>
                   </>
                 ) : (
                   <>
-                    <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    <span>Send All</span>
+                    <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span>Reset All Sent Emails</span>
                   </>
                 )}
               </button>
             </div>
           </div>
+
+          {/* Reset Confirmation Modal */}
+          {showResetConfirm && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg p-4 sm:p-6 max-w-md w-full shadow-xl">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="bg-red-100 p-2 rounded-full flex-shrink-0">
+                    <AlertCircle className="w-6 h-6 text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">Reset All Sent Emails?</h3>
+                    <p className="text-sm text-gray-600">
+                      This will mark all {stats?.sentEmails || 0} sent emails as "Not Sent". 
+                      They will be included in the next email batch.
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={() => setShowResetConfirm(false)}
+                    disabled={resetting}
+                    className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 text-gray-800 text-sm font-medium rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={resetSentEmails}
+                    disabled={resetting}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    {resetting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Resetting...</span>
+                      </>
+                    ) : (
+                      'Yes, Reset All'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Important Notice */}
           <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
@@ -243,6 +394,7 @@ export default function AutomatedEmailSender() {
                   <p><strong>Manual/Cron:</strong> Emails ALL companies (including sent)</p>
                   <p><strong>Rate Limit:</strong> 50 emails/run, 3s delay</p>
                   <p><strong>Warning:</strong> Duplicates will be sent</p>
+                  <p><strong>Reset:</strong> Use "Reset" button to clear sent status before sending again</p>
                 </div>
               </div>
             </div>
@@ -310,7 +462,8 @@ export default function AutomatedEmailSender() {
           <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-3 sm:p-4">
             <p className="text-xs sm:text-sm text-blue-800 leading-relaxed">
               <strong>How It Works:</strong> Both cron and manual send email ALL companies with valid addresses, 
-              regardless of previous sends. Companies may receive duplicates. System updates "mailSent" tag after each send.
+              regardless of previous sends. Companies may receive duplicates. Use the "Reset" button to clear 
+              all sent statuses before sending if you want to avoid duplicates.
             </p>
           </div>
         </div>
