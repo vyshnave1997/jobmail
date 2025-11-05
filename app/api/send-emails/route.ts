@@ -43,6 +43,14 @@ const createTransporter = () => {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASSWORD, // Use app-specific password for Gmail
     },
+    // Add these settings to improve deliverability
+    tls: {
+      rejectUnauthorized: true
+    },
+    pool: true, // Use pooled connections
+    maxConnections: 1,
+    rateDelta: 2000, // 2 seconds between emails
+    rateLimit: 1 // 1 email per rateDelta
   });
 };
 
@@ -392,9 +400,10 @@ export async function POST(request: NextRequest) {
 
     for (const company of companies) {
       try {
-        // Add delay between emails to avoid rate limiting (2 seconds)
+        // Add delay between emails to avoid rate limiting (5-10 seconds)
         if (sentCount > 0) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          const delay = 5000 + Math.random() * 5000; // 5-10 seconds random delay
+          await new Promise(resolve => setTimeout(resolve, delay));
         }
 
         const coverLetterText = generateCoverLetter(
@@ -415,7 +424,7 @@ export async function POST(request: NextRequest) {
             address: process.env.EMAIL_USER!
           },
           to: company.companyMail,
-          subject: `Application for ${company.companyDetail} - ${APPLICANT_NAME} | 4+ Years React/Next.js Experience`,
+          subject: `Software Developer Application - ${company.companyDetail} Position`,
           text: coverLetterText,
           html: coverLetterHTML,
           attachments: [
