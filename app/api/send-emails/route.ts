@@ -256,7 +256,7 @@ const generateHTMLCoverLetter = (companyName: string, jobTitle: string, applican
           <p>I hope this message finds you well.</p>
           <p>
             I am writing to express my keen interest in the <strong>${jobTitle}</strong> position at ${companyName}. 
-            With <strong>4+ years of experience</strong> in developing modern, responsive, and high-performing web applications, 
+            With <strong>5 years of experience</strong> in developing modern, responsive, and high-performing web applications, 
             I am confident that my technical expertise and creative mindset would make me a valuable addition to your team.
           </p>
         </div>
@@ -297,19 +297,19 @@ const generateHTMLCoverLetter = (companyName: string, jobTitle: string, applican
         <table class="details-table">
           <tr>
             <td>Total Experience</td>
-            <td>4+ Years</td>
+            <td>5 Years</td>
           </tr>
           <tr>
             <td>Experience in ReactJS</td>
-            <td>3 Years</td>
+            <td>4 Years</td>
           </tr>
           <tr>
             <td>Experience in NextJS</td>
-            <td>2 Years</td>
+            <td>3 Years</td>
           </tr>
           <tr>
             <td>Experience in TypeScript</td>
-            <td>2 Years</td>
+            <td>3 Years</td>
           </tr>
           <tr>
             <td>Notice Period</td>
